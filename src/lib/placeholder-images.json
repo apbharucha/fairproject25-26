@@ -1,0 +1,28 @@
+{
+  "placeholderImages": [
+    {
+      "id": "mrsa-microbe",
+      "description": "A microscopic view of MRSA bacteria.",
+      "imageUrl": "https://images.unsplash.com/photo-1706643568112-0234e10777a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YmFjdGVyaWElMjBtaWNyb3Njb3BlfGVufDB8fHx8MTc2NTczMzE4M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bacteria microscope"
+    },
+    {
+      "id": "dna-strand",
+      "description": "A double helix DNA strand.",
+      "imageUrl": "https://images.unsplash.com/photo-1637929476734-bd7f5f78e40a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxkbmElMjBoZWxpeHxlbnwwfHx8fDE3NjU2OTYzNzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dna helix"
+    },
+    {
+      "id": "lab-research",
+      "description": "A bioinformatics research lab environment.",
+      "imageUrl": "https://images.unsplash.com/photo-1706054178504-b6b7ca99e219?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzY2llbmNlJTIwbGFib3JhdG9yeXxlbnwwfHx8fDE3NjU3MzMxODN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "science laboratory"
+    },
+    {
+      "id": "bayesian-network",
+      "description": "Abstract representation of a Bayesian network.",
+      "imageUrl": "https://images.unsplash.com/photo-1738082956242-d897b9177bba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxuZXR3b3JrJTIwZGF0YXxlbnwwfHx8fDE3NjU2MjU2NDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "network data"
+    }
+  ]
+}
