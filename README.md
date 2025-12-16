@@ -25,11 +25,6 @@ Run the frontend (Next.js) and backend (simple Node server) locally.
 
 Open the frontend at `http://localhost:5001` and the backend health check at `http://localhost:9000/health`.
 
-Notes about Firebase removal
-- This repository has been adapted to run without the Firebase SDKs for local development.
-- The UI-level provider and initialization are no-op stubs so client imports won't fail.
-- Predictions are saved to the local SQLite-backed helper in `src/db/sqlite.ts`.
-
 Pushing to GitHub (`fairproject25-26`)
 
 1. Create the remote repository on GitHub (replace `<your-username>`):
