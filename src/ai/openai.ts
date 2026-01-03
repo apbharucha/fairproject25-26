@@ -22,8 +22,10 @@ export async function generateJson<T>(args: {
   model?: string;
   system: string;
   user: string;
+  temperature?: number;
 }): Promise<T> {
   const model = args.model ?? defaultModel();
+  const temperature = typeof args.temperature === 'number' ? args.temperature : 0.6;
 
   if (isOpenRouter) {
     const completion = await openRouterClient.chat.send(
@@ -33,6 +35,7 @@ export async function generateJson<T>(args: {
           { role: 'system', content: args.system },
           { role: 'user', content: args.user },
         ],
+        temperature,
         stream: false,
       },
       {
@@ -53,7 +56,7 @@ export async function generateJson<T>(args: {
         { role: 'user', content: args.user },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0,
+      temperature,
     });
     const content = completion.choices?.[0]?.message?.content ?? '{}';
     return JSON.parse(content) as T;

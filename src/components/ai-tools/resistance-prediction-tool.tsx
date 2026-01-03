@@ -119,13 +119,34 @@ export function ResistancePredictionTool() {
                 <p className="font-medium">{state.result.resistancePrediction}</p>
               </div>
               <div>
-                <Label>Confidence Level</Label>
-                <div className="flex items-center gap-2">
-                    <div className="w-full bg-muted rounded-full h-2.5">
-                        <div className="bg-accent h-2.5 rounded-full" style={{ width: `${state.result.confidenceLevel * 100}%` }}></div>
+                <Label>Threat Level & Confidence</Label>
+                <div className="flex items-center gap-2 justify-between">
+                    <div>
+                      <div className="text-sm">Threat: <strong>{state.result.threatLevel ?? 'Unknown'}</strong></div>
+                      <div className="text-sm">Confidence: <strong>{(state.result.confidenceLevel * 100).toFixed(1)}%</strong></div>
                     </div>
-                    <span className="font-mono text-sm">{(state.result.confidenceLevel * 100).toFixed(0)}%</span>
+                    <div className="text-sm font-mono">Aggregated from model and input</div>
                 </div>
+                {state.result.contributingFeatures && state.result.contributingFeatures.length > 0 && (
+                  <div className="mt-2 text-sm">
+                    <Label>Contributing Features</Label>
+                    <ul className="list-disc ml-5 mt-1">
+                      {state.result.contributingFeatures.map((f: any, i: number) => (
+                        <li key={i}>{f.name} — {Math.round(f.weight * 100)}%</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {state.result.breakdownAnalysis && (
+                  <div className="mt-4 text-sm">
+                    <Label>Breakdown Analysis</Label>
+                    <div className="mt-2 space-y-2">
+                      {state.result.breakdownAnalysis.split('\n\n').map((p: string, i: number) => (
+                        <p key={i}>{p}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />

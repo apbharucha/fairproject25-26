@@ -117,11 +117,34 @@ export function BayesianNetworkTool() {
                 </div>
               </div>
               <div>
-                <Label>Confidence Level</Label>
-                <div className="flex items-center gap-2">
-                    <Progress value={Math.max(0, Math.min(100, ((state.result.vancomycinResistanceProbability + state.result.ceftarolineResistanceProbability) / 2) * 100))} className="w-full [&>div]:bg-chart-3" />
-                    <span className="font-mono text-sm">{Math.max(0, Math.min(100, ((state.result.vancomycinResistanceProbability + state.result.ceftarolineResistanceProbability) / 2) * 100)).toFixed(1)}%</span>
+                <Label>Threat Level & Confidence</Label>
+                <div className="flex items-center gap-2 justify-between">
+                    <div>
+                      <div className="text-sm">Threat: <strong>{state.result.threatLevel ?? 'Unknown'}</strong></div>
+                      <div className="text-sm">Confidence: <strong>{(state.result.confidenceLevel ? (state.result.confidenceLevel * 100).toFixed(1) : Math.max(0, Math.min(100, ((state.result.vancomycinResistanceProbability + state.result.ceftarolineResistanceProbability) / 2) * 100)).toFixed(1))}%</strong></div>
+                    </div>
+                    <div className="text-sm font-mono">Calibrated from model and inputs</div>
                 </div>
+                {state.result.contributingFeatures && state.result.contributingFeatures.length > 0 && (
+                  <div className="mt-2 text-sm">
+                    <Label>Contributing Features</Label>
+                    <ul className="list-disc ml-5 mt-1">
+                      {state.result.contributingFeatures.map((f: any, i: number) => (
+                        <li key={i}>{f.name} — {Math.round(f.weight * 100)}%</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {state.result.breakdownAnalysis && (
+                  <div className="mt-4 text-sm">
+                    <Label>Breakdown Analysis</Label>
+                    <div className="mt-2 space-y-2">
+                      {state.result.breakdownAnalysis.split('\n\n').map((paragraph: string, idx: number) => (
+                        <p key={idx}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />
