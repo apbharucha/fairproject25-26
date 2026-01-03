@@ -322,10 +322,12 @@ class SQLiteDB:
             bx = x
             by = height - padding['bottom'] - h
             label = d['name'][:13] + '…' if len(d['name']) > 14 else d['name']
-            bars.append(f'\n<rect x="{bx}" y="{by}" width="{bar_w}" height="{h}" fill="#6e59f9" rx="4" />\n<text x="{bx + bar_w / 2}" y="{height - padding['bottom'] + 14}" font-size="10" text-anchor="middle" fill="#555">{label}</text>')
+            bars.append(f"""
+<rect x="{bx}" y="{by}" width="{bar_w}" height="{h}" fill="#6e59f9" rx="4" />
+<text x="{bx + bar_w / 2}" y="{height - padding['bottom'] + 14}" font-size="10" text-anchor="middle" fill="#555">{label}</text>""")
             x += bar_w + 10
         
-        chart_id_text = f'<text x="{width - padding['right'] - 8}" y="{padding['top'] - 8}" font-size="12" text-anchor="end" fill="#666">Graph ID: {chart_id}</text>' if chart_id else ''
+        chart_id_text = (f"<text x=\"{width - padding['right'] - 8}\" y=\"{padding['top'] - 8}\" font-size=\"12\" text-anchor=\"end\" fill=\"#666\">Graph ID: {chart_id}</text>") if chart_id else ""
         
         svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">

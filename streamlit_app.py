@@ -7,6 +7,7 @@ from typing import Dict, Any, List
 import httpx
 import asyncio
 import os
+from urllib.parse import urljoin, urlparse
 from datetime import datetime
 
 # Page config
@@ -17,10 +18,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# API base URL
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:9000")
+# API base URL (use loopback by default to avoid binding to 0.0.0.0)
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:9000")
 if st.sidebar.checkbox("Configure API URL"):
-    API_BASE_URL = st.sidebar.text_input("API Base URL", value=API_BASE_URL)
+    user_input = st.sidebar.text_input("API Base URL", value=API_BASE_URL)
+    if user_input:
+        # If user entered 0.0.0.0 (common when servers bind to all interfaces),
+        # replace with loopback so the client can connect from the local environment.
+        sanitized = user_input.replace("0.0.0.0", "127.0.0.1")
+        API_BASE_URL = sanitized
 
 # Custom CSS
 st.markdown("""
@@ -49,7 +55,16 @@ st.markdown("""
 
 def call_api(endpoint: str, method: str = "GET", data: Dict = None) -> Dict:
     """Call the FastAPI backend."""
-    url = f"{API_BASE_URL}{endpoint}"
+    base = API_BASE_URL.strip()
+    # Ensure scheme is present; default to http if missing
+    parsed = urlparse(base)
+    if not parsed.scheme:
+        base = f"http://{base}"
+
+    # Sanitize common problematic host bindings
+    base = base.replace("0.0.0.0", "127.0.0.1")
+    # Build final URL
+    url = urljoin(base.rstrip('/') + '/', endpoint.lstrip('/'))
     try:
         if method == "GET":
             response = httpx.get(url, timeout=30.0)
@@ -61,7 +76,33 @@ def call_api(endpoint: str, method: str = "GET", data: Dict = None) -> Dict:
         response.raise_for_status()
         return response.json()
     except httpx.RequestError as e:
-        st.error(f"Connection error: {str(e)}")
+        # More actionable error message for users
+        msg = str(e)
+        # If the error is due to attempting to connect to 0.0.0.0 or similar,
+        # try a fallback to loopback and retry once.
+        if "Cannot assign requested address" in msg or "Errno 99" in msg:
+            # Attempt to replace host with 127.0.0.1 and retry once
+            parsed = urlparse(url)
+            fallback_base = f"{parsed.scheme}://127.0.0.1:{parsed.port}"
+            fallback_url = urljoin(fallback_base.rstrip('/') + '/', parsed.path.lstrip('/'))
+            try:
+                if method == "GET":
+                    response = httpx.get(fallback_url, timeout=30.0)
+                else:
+                    response = httpx.post(fallback_url, json=data, timeout=60.0)
+                response.raise_for_status()
+                return response.json()
+            except Exception:
+                st.error(
+                    "Connection error: Could not connect to the API host. "
+                    "Please ensure the backend is running and set the API URL to http://127.0.0.1:9000 in the sidebar."
+                )
+                return {}
+        else:
+            st.error(f"Connection error: {msg}")
+            return {}
+    except OSError as e:
+        st.error(f"Network error: {e.strerror if hasattr(e, 'strerror') else str(e)}")
         return {}
     except httpx.HTTPStatusError as e:
         st.error(f"API error: {e.response.status_code} - {e.response.text}")
