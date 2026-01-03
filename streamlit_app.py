@@ -18,8 +18,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# API base URL (use loopback by default to avoid binding to 0.0.0.0)
-API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:9000")
+# API base URL - configurable via environment variable, secrets, or sidebar
+# For local development: use localhost (default)
+# For Streamlit Cloud: configure API_BASE_URL in Streamlit Cloud settings
+# Priority: env var > secrets > default
+DEFAULT_API_URL = "http://127.0.0.1:9000"  # Local development default
+API_BASE_URL = os.getenv("API_BASE_URL") or st.secrets.get("api_base_url", DEFAULT_API_URL)
+
 if st.sidebar.checkbox("Configure API URL"):
     user_input = st.sidebar.text_input("API Base URL", value=API_BASE_URL)
     if user_input:
@@ -27,6 +32,9 @@ if st.sidebar.checkbox("Configure API URL"):
         # replace with loopback so the client can connect from the local environment.
         sanitized = user_input.replace("0.0.0.0", "127.0.0.1")
         API_BASE_URL = sanitized
+    
+    # Show current API URL being used
+    st.sidebar.info(f"📍 Using API: {API_BASE_URL}")
 
 # Custom CSS
 st.markdown("""
