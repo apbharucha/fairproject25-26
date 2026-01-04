@@ -7,6 +7,7 @@ from typing import Dict, Any, List
 import httpx
 import asyncio
 import os
+import socket
 from urllib.parse import urljoin, urlparse
 from datetime import datetime
 
@@ -35,6 +36,36 @@ if st.sidebar.checkbox("Configure API URL"):
     
     # Show current API URL being used
     st.sidebar.info(f"📍 Using API: {API_BASE_URL}")
+
+# Sidebar quick-check: test API connectivity (resolves DNS and hits /health)
+def _check_api_connection(api_url: str) -> None:
+    parsed = urlparse(api_url)
+    host = parsed.hostname
+    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+
+    try:
+        # DNS resolution
+        socket.getaddrinfo(host, port)
+    except socket.gaierror as e:
+        st.error(
+            f"DNS error: could not resolve host '{host}'.\n"
+            "Check that the API URL in Streamlit secrets is correct and reachable."
+        )
+        return
+
+    # Try health endpoint
+    health_url = urljoin(api_url.rstrip('/') + '/', 'health')
+    try:
+        resp = httpx.get(health_url, timeout=10.0)
+        if resp.status_code == 200:
+            st.success(f"API reachable: {health_url} (status 200)")
+        else:
+            st.warning(f"API responded with status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        st.error(f"Connection error when contacting API: {e}")
+
+if st.sidebar.button("Test API connection"):
+    _check_api_connection(API_BASE_URL)
 
 # Custom CSS
 st.markdown("""
