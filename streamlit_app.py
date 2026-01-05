@@ -196,7 +196,7 @@ def render_chart(chart_data: Dict[str, Any], chart_type: str = "bar"):
 def bayesian_prediction_tool():
     """Bayesian Network Modeler tool."""
     st.markdown('<div class="section-header">🧠 Bayesian Network Modeler</div>', unsafe_allow_html=True)
-    st.markdown("Enter comma-separated mutation names for mecA and PBP2a to predict resistance probabilities.")
+    st.markdown("Enter comma-separated mutation names for mecA and PBP2a to predict resistance probabilities for oxacillin, vancomycin, and ceftaroline.")
     
     with st.form("bayesian_form"):
         mec_a = st.text_input(
@@ -209,24 +209,33 @@ def bayesian_prediction_tool():
             placeholder="e.g., E447K, V311A",
             help="Comma-separated list of PBP2a mutations"
         )
-        vancomycin_profile = st.text_input(
-            "Vancomycin Resistance Profile (Optional)",
-            placeholder="e.g., Known resistance mechanisms..."
-        )
-        ceftaroline_profile = st.text_input(
-            "Ceftaroline Resistance Profile (Optional)",
-            placeholder="e.g., Known resistance mechanisms..."
-        )
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            oxacillin_profile = st.text_input(
+                "Oxacillin Profile (Optional)",
+                placeholder="e.g., mecA positive..."
+            )
+        with col2:
+            vancomycin_profile = st.text_input(
+                "Vancomycin Profile (Optional)",
+                placeholder="e.g., Known resistance..."
+            )
+        with col3:
+            ceftaroline_profile = st.text_input(
+                "Ceftaroline Profile (Optional)",
+                placeholder="e.g., PBP2a mutations..."
+            )
         
         submitted = st.form_submit_button("🔮 Model Probabilities", use_container_width=True)
     
     if submitted:
-        if not mec_a or not pbp2a:
-            st.error("Please provide both mecA and PBP2a mutations.")
+        if not mec_a and not pbp2a:
+            st.error("Please provide at least one mecA or PBP2a mutation.")
             return
         
-        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()]
-        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()]
+        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()] if mec_a else []
+        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()] if pbp2a else []
         
         if not mec_a_list and not pbp2a_list:
             st.error("Please provide at least one mutation.")
@@ -239,6 +248,7 @@ def bayesian_prediction_tool():
                 data={
                     "mecAMutations": mec_a_list,
                     "pbp2aMutations": pbp2a_list,
+                    "oxacillinResistanceProfile": oxacillin_profile or None,
                     "vancomycinResistanceProfile": vancomycin_profile or None,
                     "ceftarolineResistanceProfile": ceftaroline_profile or None
                 }
@@ -249,21 +259,27 @@ def bayesian_prediction_tool():
             st.markdown('<div class="prediction-card">', unsafe_allow_html=True)
             st.markdown("### 🤖 AI Model Result")
             
-            # Probabilities
-            col1, col2 = st.columns(2)
+            # Probabilities - now including oxacillin
+            col1, col2, col3 = st.columns(3)
+            
             with col1:
-                van_prob = output.get('vancomycinResistanceProbability', 0)
-                st.metric("Vancomycin Resistance Probability", f"{van_prob * 100:.1f}%")
-                st.progress(van_prob)
+                oxa_prob = output.get('oxacillinResistanceProbability', 0)
+                st.metric("Oxacillin Resistance", f"{oxa_prob * 100:.1f}%")
+                st.progress(oxa_prob)
             
             with col2:
+                van_prob = output.get('vancomycinResistanceProbability', 0)
+                st.metric("Vancomycin Resistance", f"{van_prob * 100:.1f}%")
+                st.progress(van_prob)
+            
+            with col3:
                 cef_prob = output.get('ceftarolineResistanceProbability', 0)
-                st.metric("Ceftaroline Resistance Probability", f"{cef_prob * 100:.1f}%")
+                st.metric("Ceftaroline Resistance", f"{cef_prob * 100:.1f}%")
                 st.progress(cef_prob)
             
             # Threat level and confidence
             threat_level = output.get('threatLevel', 'Unknown')
-            confidence = output.get('confidenceLevel', (van_prob + cef_prob) / 2)
+            confidence = output.get('confidenceLevel', (oxa_prob + van_prob + cef_prob) / 3)
             st.markdown(f"**Threat Level:** {threat_level} | **Confidence:** {confidence * 100:.1f}%")
             
             # Contributing features
@@ -378,6 +394,292 @@ def evolutionary_prediction_tool():
             if output.get('suggestedInterventions'):
                 with st.expander("💡 Suggested Interventions"):
                     st.markdown(output['suggestedInterventions'])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+def ml_prediction_tool():
+    """Machine Learning Models (SVM, Random Forest, Ensemble) prediction tool."""
+    st.markdown('<div class="section-header">🤖 Machine Learning Models</div>', unsafe_allow_html=True)
+    st.markdown("""
+    Use trained ML models to predict antibiotic resistance. Choose from:
+    - **SVM (Support Vector Machine)**: Good for high-dimensional data
+    - **Random Forest**: Ensemble of decision trees with feature importance
+    - **Ensemble**: Combined SVM + Random Forest for robust predictions
+    """)
+    
+    with st.form("ml_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            mec_a = st.text_input(
+                "mecA Mutations",
+                placeholder="e.g., G246E, I112V, D223N",
+                help="Comma-separated list of mecA mutations"
+            )
+            sccmec_type = st.selectbox(
+                "SCCmec Type (Optional)",
+                ["", "I", "II", "III", "IV", "IVa", "IVb", "V", "VI"],
+                help="Staphylococcal Cassette Chromosome mec type"
+            )
+        
+        with col2:
+            pbp2a = st.text_input(
+                "PBP2a Mutations",
+                placeholder="e.g., E447K, V311A",
+                help="Comma-separated list of PBP2a mutations"
+            )
+            model_type = st.selectbox(
+                "Model Type",
+                ["ensemble", "svm", "random_forest"],
+                format_func=lambda x: {
+                    "ensemble": "🔗 Ensemble (SVM + Random Forest)",
+                    "svm": "📊 Support Vector Machine",
+                    "random_forest": "🌲 Random Forest"
+                }.get(x, x)
+            )
+        
+        additional_genes = st.text_input(
+            "Additional Resistance Genes (Optional)",
+            placeholder="e.g., vanA, ermC, tetM",
+            help="Comma-separated list of additional resistance genes"
+        )
+        
+        submitted = st.form_submit_button("🔮 Run ML Prediction", use_container_width=True)
+    
+    if submitted:
+        if not mec_a and not pbp2a:
+            st.error("Please provide at least one mecA or PBP2a mutation.")
+            return
+        
+        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()] if mec_a else []
+        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()] if pbp2a else []
+        genes_list = [g.strip() for g in additional_genes.split(',') if g.strip()] if additional_genes else None
+        
+        with st.spinner(f"Running {model_type} prediction..."):
+            result = call_api(
+                "/api/predictions/ml",
+                method="POST",
+                data={
+                    "mecAMutations": mec_a_list,
+                    "pbp2aMutations": pbp2a_list,
+                    "modelType": model_type,
+                    "sccmecType": sccmec_type if sccmec_type else None,
+                    "additionalGenes": genes_list
+                }
+            )
+        
+        if result and 'output' in result:
+            output = result['output']
+            st.markdown('<div class="prediction-card">', unsafe_allow_html=True)
+            st.markdown(f"### 🤖 {output.get('model', 'ML Model')} Results")
+            
+            # Resistance probabilities
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                oxa_prob = output.get('oxacillinResistanceProbability', 0)
+                st.metric("Oxacillin Resistance", f"{oxa_prob * 100:.1f}%")
+                st.progress(oxa_prob)
+            
+            with col2:
+                van_prob = output.get('vancomycinResistanceProbability', 0)
+                st.metric("Vancomycin Resistance", f"{van_prob * 100:.1f}%")
+                st.progress(van_prob)
+            
+            with col3:
+                cef_prob = output.get('ceftarolineResistanceProbability', 0)
+                st.metric("Ceftaroline Resistance", f"{cef_prob * 100:.1f}%")
+                st.progress(cef_prob)
+            
+            # Threat level and confidence
+            threat_level = output.get('threatLevel', 'Unknown')
+            confidence = output.get('confidenceLevel', 0)
+            
+            threat_color = {"High": "🔴", "Moderate": "🟡", "Low": "🟢", "Very Low": "⚪"}.get(threat_level, "⚪")
+            st.markdown(f"**Threat Level:** {threat_color} {threat_level} | **Model Confidence:** {confidence * 100:.1f}%")
+            
+            # Breakdown analysis
+            if output.get('breakdownAnalysis'):
+                with st.expander("📋 Detailed Analysis"):
+                    st.text(output['breakdownAnalysis'])
+            
+            # Feature importance
+            if output.get('featureImportance'):
+                with st.expander("📊 Feature Importance"):
+                    importance_df = pd.DataFrame(output['featureImportance'][:8])
+                    if not importance_df.empty:
+                        fig = px.bar(importance_df, x='feature', y='importance', 
+                                    title='Top Feature Importance Scores')
+                        fig.update_xaxes(tickangle=-45)
+                        st.plotly_chart(fig, use_container_width=True)
+            
+            # Charts
+            if output.get('charts'):
+                st.markdown("### 📊 Visualizations")
+                for chart in output['charts']:
+                    render_chart(chart, "bar")
+            
+            # Rationale
+            if output.get('rationale'):
+                with st.expander("📝 Model Rationale"):
+                    st.markdown(output['rationale'])
+            
+            # Solution
+            if output.get('solution'):
+                with st.expander("💡 Recommendations"):
+                    st.markdown(output['solution'])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+def oxacillin_prediction_tool():
+    """Specialized Oxacillin Resistance Prediction tool."""
+    st.markdown('<div class="section-header">💊 Oxacillin Resistance Specialist</div>', unsafe_allow_html=True)
+    st.markdown("""
+    **Specialized prediction for oxacillin (methicillin) resistance in MRSA.**
+    
+    Oxacillin resistance is primarily mediated by:
+    - **mecA gene** encoding PBP2a (penicillin-binding protein 2a)
+    - **SCCmec cassette** types (I-XI)
+    - **Regulatory genes** (mecI, mecR1)
+    """)
+    
+    with st.form("oxacillin_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            mec_a = st.text_input(
+                "mecA Mutations *",
+                placeholder="e.g., G246E, I112V, D223N",
+                help="Comma-separated list of mecA mutations (required)"
+            )
+            sccmec_type = st.selectbox(
+                "SCCmec Cassette Type",
+                ["", "I", "II", "III", "IV", "IVa", "IVb", "IVc", "IVd", "V", "VI", "VII", "VIII"],
+                help="SCCmec type significantly affects resistance level"
+            )
+        
+        with col2:
+            pbp2a = st.text_input(
+                "PBP2a Mutations",
+                placeholder="e.g., E447K, V311A, N246D",
+                help="Comma-separated list of PBP2a mutations"
+            )
+            strain_info = st.text_input(
+                "Strain Information (Optional)",
+                placeholder="e.g., USA300, ST8, CC8",
+                help="MLST sequence type or strain designation"
+            )
+        
+        additional_genes = st.text_input(
+            "Additional Resistance Genes (Optional)",
+            placeholder="e.g., mecI, mecR1, blaZ, vanA",
+            help="Regulatory or additional resistance genes"
+        )
+        
+        submitted = st.form_submit_button("🔬 Analyze Oxacillin Resistance", use_container_width=True)
+    
+    if submitted:
+        if not mec_a and not pbp2a:
+            st.error("Please provide at least one mecA or PBP2a mutation.")
+            return
+        
+        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()] if mec_a else []
+        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()] if pbp2a else []
+        genes_list = [g.strip() for g in additional_genes.split(',') if g.strip()] if additional_genes else None
+        
+        with st.spinner("Analyzing oxacillin resistance..."):
+            result = call_api(
+                "/api/predictions/oxacillin",
+                method="POST",
+                data={
+                    "mecAMutations": mec_a_list,
+                    "pbp2aMutations": pbp2a_list,
+                    "sccmecType": sccmec_type if sccmec_type else None,
+                    "additionalGenes": genes_list,
+                    "strainInfo": strain_info if strain_info else None
+                }
+            )
+        
+        if result and 'output' in result:
+            output = result['output']
+            st.markdown('<div class="prediction-card">', unsafe_allow_html=True)
+            
+            # Main result
+            oxa_prob = output.get('oxacillinResistanceProbability', 0)
+            prediction = output.get('prediction', 'Unknown')
+            threat_level = output.get('threatLevel', 'Unknown')
+            
+            # Color coding
+            if prediction == 'Resistant':
+                st.error(f"### 🔴 Prediction: {prediction}")
+            else:
+                st.success(f"### 🟢 Prediction: {prediction}")
+            
+            # Main metrics
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Resistance Probability", f"{oxa_prob * 100:.1f}%")
+                st.progress(oxa_prob)
+            
+            with col2:
+                confidence = output.get('confidenceLevel', 0)
+                st.metric("Model Confidence", f"{confidence * 100:.1f}%")
+            
+            with col3:
+                threat_color = {"High": "🔴", "Moderate": "🟡", "Low": "🟢", "Very Low": "⚪"}.get(threat_level, "⚪")
+                st.metric("Threat Level", f"{threat_color} {threat_level}")
+            
+            # SCCmec Analysis
+            if output.get('sccmecType'):
+                st.markdown("---")
+                st.markdown("### 🧬 SCCmec Cassette Analysis")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Type:** {output.get('sccmecType')}")
+                    st.markdown(f"**Risk Score:** {output.get('sccmecRisk', 0):.2f}")
+                with col2:
+                    if output.get('sccmecAnalysis'):
+                        st.markdown(f"**Analysis:** {output.get('sccmecAnalysis')}")
+            
+            # High-risk mutations
+            if output.get('highRiskMutations'):
+                st.markdown("---")
+                st.markdown("### ⚠️ High-Risk Mutations Detected")
+                for mut in output['highRiskMutations']:
+                    st.warning(f"• {mut}")
+            
+            # Detailed analysis
+            if output.get('detailedAnalysis'):
+                with st.expander("📋 Detailed Analysis"):
+                    st.text(output['detailedAnalysis'])
+            
+            # Charts
+            if output.get('charts'):
+                st.markdown("### 📊 Visualizations")
+                cols = st.columns(2)
+                for i, chart in enumerate(output['charts'][:2]):
+                    with cols[i % 2]:
+                        render_chart(chart, "bar")
+            
+            # Contributing features
+            if output.get('contributingFeatures'):
+                with st.expander("🔍 Contributing Features"):
+                    for feat in output['contributingFeatures']:
+                        st.markdown(f"- **{feat['name']}**: {feat['weight']*100:.0f}%")
+            
+            # Rationale and solution
+            col1, col2 = st.columns(2)
+            with col1:
+                if output.get('rationale'):
+                    with st.expander("📝 Scientific Rationale"):
+                        st.markdown(output['rationale'])
+            with col2:
+                if output.get('solution'):
+                    with st.expander("💡 Clinical Considerations"):
+                        st.markdown(output['solution'])
             
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -653,14 +955,30 @@ def datasets_section():
         st.markdown("### Update Datasets")
         st.write("Click the button below to scrape fresh data from all three sources:")
         
-        if st.button("🔄 Scrape Data from All Sources", type="primary"):
-            with st.spinner("Scraping data from NCBI, CARD, and PubMLST... This may take a few minutes."):
-                scrape_result = call_api("/api/scrape-data", method="POST")
+        st.markdown("### Scraping Options")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            ncbi_limit = st.number_input("NCBI Isolates", min_value=100, max_value=10000, value=2000, step=100)
+        with col2:
+            card_limit = st.number_input("CARD Genes", min_value=50, max_value=1000, value=500, step=50)
+        with col3:
+            pubmlst_limit = st.number_input("PubMLST STs", min_value=50, max_value=500, value=200, step=50)
+        
+        st.caption(f"💡 This will scrape {ncbi_limit:,} NCBI isolates, {card_limit:,} CARD genes, and {pubmlst_limit:,} PubMLST sequence types")
+        
+        if st.button("🔄 Scrape Large-Scale Data from All Sources", type="primary"):
+            with st.spinner(f"Scraping large-scale data... This may take 10-30 minutes depending on dataset sizes."):
+                scrape_result = call_api(
+                    f"/api/scrape-data?ncbi_limit={ncbi_limit}&card_limit={card_limit}&pubmlst_limit={pubmlst_limit}",
+                    method="POST"
+                )
                 if scrape_result and scrape_result.get("status") == "success":
-                    st.success("✅ Data scraped successfully!")
+                    st.success("✅ Large-scale data scraping complete!")
+                    st.info(scrape_result.get("message", ""))
                     st.rerun()
                 else:
-                    st.error(f"❌ Error: {scrape_result.get('message', 'Unknown error')}")
+                    st.error(f"❌ Error: {scrape_result.get('message', 'Unknown error') if scrape_result else 'No response from API'}")
     else:
         st.warning("⚠️ Could not load dataset statistics. Make sure the API is running.")
         st.info("💡 Run the scraper script: `python3 scrape_datasets.py`")
@@ -794,11 +1112,20 @@ def main():
     elif page == "Methodology":
         methodology()
     elif page == "AI Tools":
-        tab1, tab2 = st.tabs(["🧠 Bayesian Network Modeler", "🧬 Evolutionary Resistance Predictor"])
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "🧠 Bayesian Network Modeler",
+            "🧬 Evolutionary Resistance Predictor",
+            "🤖 ML Models (SVM/RF)",
+            "💊 Oxacillin Specialist"
+        ])
         with tab1:
             bayesian_prediction_tool()
         with tab2:
             evolutionary_prediction_tool()
+        with tab3:
+            ml_prediction_tool()
+        with tab4:
+            oxacillin_prediction_tool()
     elif page == "Visualizations":
         visualizations()
     elif page == "Prediction History":
