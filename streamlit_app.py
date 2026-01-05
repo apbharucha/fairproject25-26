@@ -11,6 +11,31 @@ import socket
 from urllib.parse import urljoin, urlparse
 from datetime import datetime
 
+# Known mutations for dropdown suggestions
+KNOWN_MECA_MUTATIONS = [
+    "G246E", "I112V", "D223N", "E125K", "N337D", "G452S", "H267Y", "A156V",
+    "T186A", "K219R", "S403N", "L461F", "R241K", "P314S", "V367I"
+]
+
+KNOWN_PBP2A_MUTATIONS = [
+    "E447K", "V311A", "T123C", "N246D", "A389T", "I517M", "H225Y", "V406A",
+    "S461T", "M372I", "Y446N", "E239K", "L439F", "R512S", "K318E"
+]
+
+KNOWN_SCCMEC_TYPES = ["I", "II", "III", "IV", "IVa", "IVb", "IVc", "IVd", "V", "VI", "VII", "VIII", "IX", "X", "XI"]
+
+KNOWN_RESISTANCE_GENES = [
+    "vanA", "vanB", "vanC", "mecI", "mecR1", "blaZ", "blaI", "blaR1",
+    "ermA", "ermB", "ermC", "tetK", "tetM", "tetL", "aacA-aphD",
+    "dfrA", "dfrG", "fusA", "fusB", "mupA", "cfr", "optrA", "qacA", "qacB"
+]
+
+KNOWN_STRAINS = [
+    "USA300", "USA400", "USA100", "USA200", "ST8", "ST5", "ST239", "ST22",
+    "ST30", "ST36", "ST45", "ST59", "ST72", "ST80", "ST93", "ST398", "ST772",
+    "CC8", "CC5", "CC22", "CC30", "CC45", "EMRSA-15", "EMRSA-16"
+]
+
 # Page config
 st.set_page_config(
     page_title="MRSA Resistance Forecaster",
@@ -196,49 +221,68 @@ def render_chart(chart_data: Dict[str, Any], chart_type: str = "bar"):
 def bayesian_prediction_tool():
     """Bayesian Network Modeler tool."""
     st.markdown('<div class="section-header">🧠 Bayesian Network Modeler</div>', unsafe_allow_html=True)
-    st.markdown("Enter comma-separated mutation names for mecA and PBP2a to predict resistance probabilities for oxacillin, vancomycin, and ceftaroline.")
+    st.markdown("Select or enter mutation names for mecA and PBP2a to predict resistance probabilities for oxacillin, vancomycin, and ceftaroline.")
     
-    with st.form("bayesian_form"):
-        mec_a = st.text_input(
-            "mecA Mutations",
+    # Mutation selection with multiselect dropdowns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        mec_a_selected = st.multiselect(
+            "Select mecA Mutations",
+            options=KNOWN_MECA_MUTATIONS,
+            default=[],
+            help="Select known mecA mutations from the dropdown"
+        )
+        mec_a_custom = st.text_input(
+            "Or enter custom mecA mutations",
             placeholder="e.g., G246E, I112V",
-            help="Comma-separated list of mecA mutations"
+            help="Comma-separated list of additional mecA mutations"
         )
-        pbp2a = st.text_input(
-            "PBP2a Mutations",
+    
+    with col2:
+        pbp2a_selected = st.multiselect(
+            "Select PBP2a Mutations",
+            options=KNOWN_PBP2A_MUTATIONS,
+            default=[],
+            help="Select known PBP2a mutations from the dropdown"
+        )
+        pbp2a_custom = st.text_input(
+            "Or enter custom PBP2a mutations",
             placeholder="e.g., E447K, V311A",
-            help="Comma-separated list of PBP2a mutations"
+            help="Comma-separated list of additional PBP2a mutations"
         )
-        
+    
+    # Optional profiles
+    with st.expander("Optional Resistance Profiles"):
         col1, col2, col3 = st.columns(3)
         with col1:
             oxacillin_profile = st.text_input(
-                "Oxacillin Profile (Optional)",
+                "Oxacillin Profile",
                 placeholder="e.g., mecA positive..."
             )
         with col2:
             vancomycin_profile = st.text_input(
-                "Vancomycin Profile (Optional)",
+                "Vancomycin Profile",
                 placeholder="e.g., Known resistance..."
             )
         with col3:
             ceftaroline_profile = st.text_input(
-                "Ceftaroline Profile (Optional)",
+                "Ceftaroline Profile",
                 placeholder="e.g., PBP2a mutations..."
             )
-        
-        submitted = st.form_submit_button("🔮 Model Probabilities", use_container_width=True)
     
-    if submitted:
-        if not mec_a and not pbp2a:
-            st.error("Please provide at least one mecA or PBP2a mutation.")
-            return
+    if st.button("🔮 Model Probabilities", use_container_width=True, key="bayesian_submit"):
+        # Combine selected and custom mutations
+        mec_a_list = list(mec_a_selected)
+        if mec_a_custom:
+            mec_a_list.extend([m.strip() for m in mec_a_custom.split(',') if m.strip()])
         
-        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()] if mec_a else []
-        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()] if pbp2a else []
+        pbp2a_list = list(pbp2a_selected)
+        if pbp2a_custom:
+            pbp2a_list.extend([m.strip() for m in pbp2a_custom.split(',') if m.strip()])
         
         if not mec_a_list and not pbp2a_list:
-            st.error("Please provide at least one mutation.")
+            st.error("Please provide at least one mecA or PBP2a mutation.")
             return
         
         with st.spinner("Modeling probabilities..."):
@@ -248,9 +292,9 @@ def bayesian_prediction_tool():
                 data={
                     "mecAMutations": mec_a_list,
                     "pbp2aMutations": pbp2a_list,
-                    "oxacillinResistanceProfile": oxacillin_profile or None,
-                    "vancomycinResistanceProfile": vancomycin_profile or None,
-                    "ceftarolineResistanceProfile": ceftaroline_profile or None
+                    "oxacillinResistanceProfile": oxacillin_profile if 'oxacillin_profile' in dir() and oxacillin_profile else None,
+                    "vancomycinResistanceProfile": vancomycin_profile if 'vancomycin_profile' in dir() and vancomycin_profile else None,
+                    "ceftarolineResistanceProfile": ceftaroline_profile if 'ceftaroline_profile' in dir() and ceftaroline_profile else None
                 }
             )
         
@@ -408,53 +452,83 @@ def ml_prediction_tool():
     - **Ensemble**: Combined SVM + Random Forest for robust predictions
     """)
     
-    with st.form("ml_form"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            mec_a = st.text_input(
-                "mecA Mutations",
-                placeholder="e.g., G246E, I112V, D223N",
-                help="Comma-separated list of mecA mutations"
-            )
-            sccmec_type = st.selectbox(
-                "SCCmec Type (Optional)",
-                ["", "I", "II", "III", "IV", "IVa", "IVb", "V", "VI"],
-                help="Staphylococcal Cassette Chromosome mec type"
-            )
-        
-        with col2:
-            pbp2a = st.text_input(
-                "PBP2a Mutations",
-                placeholder="e.g., E447K, V311A",
-                help="Comma-separated list of PBP2a mutations"
-            )
-            model_type = st.selectbox(
-                "Model Type",
-                ["ensemble", "svm", "random_forest"],
-                format_func=lambda x: {
-                    "ensemble": "🔗 Ensemble (SVM + Random Forest)",
-                    "svm": "📊 Support Vector Machine",
-                    "random_forest": "🌲 Random Forest"
-                }.get(x, x)
-            )
-        
-        additional_genes = st.text_input(
-            "Additional Resistance Genes (Optional)",
-            placeholder="e.g., vanA, ermC, tetM",
-            help="Comma-separated list of additional resistance genes"
-        )
-        
-        submitted = st.form_submit_button("🔮 Run ML Prediction", use_container_width=True)
+    # Model selection
+    model_type = st.selectbox(
+        "Select Model Type",
+        ["ensemble", "svm", "random_forest"],
+        format_func=lambda x: {
+            "ensemble": "🔗 Ensemble (SVM + Random Forest)",
+            "svm": "📊 Support Vector Machine",
+            "random_forest": "🌲 Random Forest"
+        }.get(x, x),
+        key="ml_model_type"
+    )
     
-    if submitted:
-        if not mec_a and not pbp2a:
+    # Mutation selection with dropdowns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        mec_a_selected = st.multiselect(
+            "Select mecA Mutations",
+            options=KNOWN_MECA_MUTATIONS,
+            default=[],
+            help="Select known mecA mutations",
+            key="ml_meca"
+        )
+        mec_a_custom = st.text_input(
+            "Or enter custom mecA mutations",
+            placeholder="e.g., G246E, I112V",
+            key="ml_meca_custom"
+        )
+    
+    with col2:
+        pbp2a_selected = st.multiselect(
+            "Select PBP2a Mutations",
+            options=KNOWN_PBP2A_MUTATIONS,
+            default=[],
+            help="Select known PBP2a mutations",
+            key="ml_pbp2a"
+        )
+        pbp2a_custom = st.text_input(
+            "Or enter custom PBP2a mutations",
+            placeholder="e.g., E447K, V311A",
+            key="ml_pbp2a_custom"
+        )
+    
+    # Additional options
+    col1, col2 = st.columns(2)
+    with col1:
+        sccmec_type = st.selectbox(
+            "SCCmec Type (Optional)",
+            [""] + KNOWN_SCCMEC_TYPES,
+            help="Staphylococcal Cassette Chromosome mec type",
+            key="ml_sccmec"
+        )
+    
+    with col2:
+        additional_genes_selected = st.multiselect(
+            "Additional Resistance Genes (Optional)",
+            options=KNOWN_RESISTANCE_GENES,
+            default=[],
+            help="Select additional resistance genes",
+            key="ml_genes"
+        )
+    
+    if st.button("🔮 Run ML Prediction", use_container_width=True, key="ml_submit"):
+        # Combine selected and custom mutations
+        mec_a_list = list(mec_a_selected)
+        if mec_a_custom:
+            mec_a_list.extend([m.strip() for m in mec_a_custom.split(',') if m.strip()])
+        
+        pbp2a_list = list(pbp2a_selected)
+        if pbp2a_custom:
+            pbp2a_list.extend([m.strip() for m in pbp2a_custom.split(',') if m.strip()])
+        
+        genes_list = list(additional_genes_selected) if additional_genes_selected else None
+        
+        if not mec_a_list and not pbp2a_list:
             st.error("Please provide at least one mecA or PBP2a mutation.")
             return
-        
-        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()] if mec_a else []
-        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()] if pbp2a else []
-        genes_list = [g.strip() for g in additional_genes.split(',') if g.strip()] if additional_genes else None
         
         with st.spinner(f"Running {model_type} prediction..."):
             result = call_api(
@@ -545,49 +619,73 @@ def oxacillin_prediction_tool():
     - **Regulatory genes** (mecI, mecR1)
     """)
     
-    with st.form("oxacillin_form"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            mec_a = st.text_input(
-                "mecA Mutations *",
-                placeholder="e.g., G246E, I112V, D223N",
-                help="Comma-separated list of mecA mutations (required)"
-            )
-            sccmec_type = st.selectbox(
-                "SCCmec Cassette Type",
-                ["", "I", "II", "III", "IV", "IVa", "IVb", "IVc", "IVd", "V", "VI", "VII", "VIII"],
-                help="SCCmec type significantly affects resistance level"
-            )
-        
-        with col2:
-            pbp2a = st.text_input(
-                "PBP2a Mutations",
-                placeholder="e.g., E447K, V311A, N246D",
-                help="Comma-separated list of PBP2a mutations"
-            )
-            strain_info = st.text_input(
-                "Strain Information (Optional)",
-                placeholder="e.g., USA300, ST8, CC8",
-                help="MLST sequence type or strain designation"
-            )
-        
-        additional_genes = st.text_input(
-            "Additional Resistance Genes (Optional)",
-            placeholder="e.g., mecI, mecR1, blaZ, vanA",
-            help="Regulatory or additional resistance genes"
-        )
-        
-        submitted = st.form_submit_button("🔬 Analyze Oxacillin Resistance", use_container_width=True)
+    # Mutation selection with dropdowns
+    col1, col2 = st.columns(2)
     
-    if submitted:
-        if not mec_a and not pbp2a:
+    with col1:
+        mec_a_selected = st.multiselect(
+            "Select mecA Mutations *",
+            options=KNOWN_MECA_MUTATIONS,
+            default=[],
+            help="Select known mecA mutations",
+            key="oxa_meca"
+        )
+        mec_a_custom = st.text_input(
+            "Or enter custom mecA mutations",
+            placeholder="e.g., G246E, I112V",
+            key="oxa_meca_custom"
+        )
+        sccmec_type = st.selectbox(
+            "SCCmec Cassette Type",
+            [""] + KNOWN_SCCMEC_TYPES,
+            help="SCCmec type significantly affects resistance level",
+            key="oxa_sccmec"
+        )
+    
+    with col2:
+        pbp2a_selected = st.multiselect(
+            "Select PBP2a Mutations",
+            options=KNOWN_PBP2A_MUTATIONS,
+            default=[],
+            help="Select known PBP2a mutations",
+            key="oxa_pbp2a"
+        )
+        pbp2a_custom = st.text_input(
+            "Or enter custom PBP2a mutations",
+            placeholder="e.g., E447K, V311A",
+            key="oxa_pbp2a_custom"
+        )
+        strain_info = st.selectbox(
+            "Strain Information (Optional)",
+            [""] + KNOWN_STRAINS,
+            help="MLST sequence type or strain designation",
+            key="oxa_strain"
+        )
+    
+    # Additional genes
+    additional_genes_selected = st.multiselect(
+        "Additional Resistance Genes (Optional)",
+        options=KNOWN_RESISTANCE_GENES,
+        default=[],
+        help="Regulatory or additional resistance genes",
+        key="oxa_genes"
+    )
+    
+    if st.button("🔬 Analyze Oxacillin Resistance", use_container_width=True, key="oxa_submit"):
+        # Combine selected and custom mutations
+        mec_a_list = list(mec_a_selected)
+        if mec_a_custom:
+            mec_a_list.extend([m.strip() for m in mec_a_custom.split(',') if m.strip()])
+        
+        pbp2a_list = list(pbp2a_selected)
+        if pbp2a_custom:
+            pbp2a_list.extend([m.strip() for m in pbp2a_custom.split(',') if m.strip()])
+        
+        genes_list = list(additional_genes_selected) if additional_genes_selected else None
+        
+        if not mec_a_list and not pbp2a_list:
             st.error("Please provide at least one mecA or PBP2a mutation.")
             return
-        
-        mec_a_list = [m.strip() for m in mec_a.split(',') if m.strip()] if mec_a else []
-        pbp2a_list = [m.strip() for m in pbp2a.split(',') if m.strip()] if pbp2a else []
-        genes_list = [g.strip() for g in additional_genes.split(',') if g.strip()] if additional_genes else None
         
         with st.spinner("Analyzing oxacillin resistance..."):
             result = call_api(
